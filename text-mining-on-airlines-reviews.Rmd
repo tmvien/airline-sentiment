@@ -1,0 +1,646 @@
+---
+title: "A Text Mining on customer reviews of the 3 biggest airlines"
+output: html_notebook
+---
+We decide to take a look inside customer reviews of the 3 biggest airlines to confirm the rating of customers. By using sentiment analysis, we can answer the question which airline receive worst reviews from customers and which aspects they will need to improve for better. 
+
+```{r}
+aa <- read.csv('AA.csv', header = TRUE, stringsAsFactors = FALSE)
+aa <- aa[, !names(aa) %in% c('X')]
+head(aa)
+lufthansa <- read.csv('Lufthansa.csv', header = TRUE, stringsAsFactors = FALSE)
+lufthansa <- lufthansa[, !names(lufthansa) %in% c('X')]
+head(lufthansa)
+csa <- read.csv('China_Southern_Airlines.csv', header = TRUE, stringsAsFactors = FALSE)
+csa <- csa[, !names(csa) %in% c('X')]
+head(csa)
+```
+
+```{r}
+library(ggplot2)
+ggplot(aa, aes(class, ratings)) + geom_col(aes(fill=class))
+```
+
+Most airlines receive reviews from customers riding Economy. AA has more reviews of customers riding First Class than Business Class.
+
+```{r}
+aa$ratings_ <- aa$ratings 
+aa$ratings_ <- gsub('[1-3]', 'negative', aa$ratings_)
+aa$ratings_ <- gsub('[4-5]', 'positive', aa$ratings_)
+aa
+```
+
+```{r}
+aa$class_ <- aa$class
+aa$class_ <- gsub('Premium Economy', 'High Price', aa$class_)
+aa$class_ <- gsub('First Class', 'High Price', aa$class_)
+aa$class_ <- gsub('Business Class', 'High Price', aa$class_)
+
+aa$class_ <- gsub('Economy' , 'Normal Price', aa$class_)
+aa
+```
+
+```{r}
+#lapply(aa$number_of_reviews_, function(x) {if (x <= 50) {replace(aa$number_of_reviews_, x, 'newbie')} else {replace(aa$number_of_reviews_, x, 'regular')}}) 
+#replace(aa$number_of_reviews_, aa$number_of_reviews_ %in% c(1:50), 'newbie')
+aa$number_of_reviews_ <- aa$number_of_reviews
+aa$number_of_reviews_ <- as.numeric(gsub(",", "", aa$number_of_reviews_))
+aa$number_of_reviews_[aa$number_of_reviews_ %in% c(1:50)] <- 'newbie'
+aa$number_of_reviews_[aa$number_of_reviews_ %in% c(51:500000)] <- 'regular'
+aa
+```
+
+```{r}
+aa$ratings_ <- as.factor(aa$ratings_)
+aa$ratings_ <- relevel(aa$ratings_, 'negative')
+aa$class_ <- as.factor(aa$class_)
+aa$class_ <- relevel(aa$class_, 'Normal Price')
+
+```
+
+
+
+```{r}
+str(aa)
+```
+
+
+```{r}
+model1 <- glm(ratings_ ~ class_, aa, family = binomial())
+model1
+```
+
+```{r}
+summary(model1)
+```
+
+Lower values of −2LL indicate that the model is predicting the outcome variable more accurately.
+
+The crucial statistic is the z-statistic which has a normal distribution and tells us whether the b coefficient for that predictor is significantly different from zero. If the coefficient is significantly different from zero then we can assume that the predictor is making a significant contribution to the prediction of the outcome (Y).
+
+```{r}
+modelChi <- model1$null.deviance - model1$deviance # subtracting the deviance from the null deviance
+chidf <- model1$df.null - model1$df.residual # which is 1
+chisq.prob <- 1 - pchisq(modelChi, 1)
+chisq.prob
+```
+
+Because this probability is less than .05, we can reject the null hypothesis that the model is not better than chance at predicting the outcome. We can report that including High Price produced a significant improvement in the fit of the model, p = 0.0015.
+We could say that Intervention was a significant predictor of positive reviews, z = 3.139, p < .002.
+
+
+
+```{r}
+<<<<<<< HEAD
+library(broom)
+=======
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+augmented_mod <- augment(model1)
+glimpse(augmented_mod)
+```
+
+```{r}
+<<<<<<< HEAD
+graph_data <- ggplot(aa, aes(class_, ratings_))
+graph_data + geom_jitter(width=0, height=0.05, alpha = .5) +
+  geom_smooth(method = 'glm', se=FALSE)
+=======
+graph_data <- ggplot(aa, aes(class, number_of_reviews))
+graph_data + geom_point() + geom_smooth(method = 'glm')
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+```
+
+
+```{r}
+sum(is.numeric(aa$number_of_reviews_))
+```
+
+
+
+```{r}
+aa$number_of_reviews_ <- as.factor(aa$number_of_reviews_)
+aa$number_of_reviews_ <- relevel(aa$number_of_reviews_, 'regular')
+model2 <- glm(ratings_ ~ class_ + number_of_reviews_, aa, family = binomial())
+model2
+```
+
+
+```{r}
+library(qdap); library(tm); library(tidytext); library(dplyr)
+```
+
+
+```{r}
+#lufthansa[lufthansa$ratings == 1 or lufthansa$ratings == 2, 'ratings']
+#num_neg_luft <- sum(lufthansa$ratings %in% c(1, 2))
+#num_neg_luft
+cat("Proportion of negative reviews of Lufthansa:", sum(lufthansa$ratings %in% c(1, 2, 3))/length(lufthansa$ratings), '\n')
+cat("Proportion of positive reviews of Lufthansa:", sum(lufthansa$ratings %in% c(4, 5))/length(lufthansa$ratings), '\n')
+
+cat("Proportion of negative reviews of AA:", sum(aa$ratings %in% c(1, 2, 3))/length(aa$ratings), '\n')
+cat("Proportion of positive reviews of AA:", sum(aa$ratings %in% c(4, 5))/length(aa$ratings), '\n')
+
+cat("Proportion of negative reviews of CSA:", sum(csa$ratings %in% c(1, 2, 3))/length(lufthansa$ratings), '\n')
+cat("Proportion of positive reviews of CSA:", sum(csa$ratings %in% c(4, 5))/length(csa$ratings), '\n')
+
+```
+
+
+```{r}
+proportion = matrix(c(c(0.4038095, 0.5961905), c(0.5085714, 0.4914286), c(0.4057143, 0.5942857)), nrow = 3, byrow = TRUE)
+proportion_df <- as.data.frame(proportion)
+rownames(proportion_df) = c("Lufthansa", "AA", "China Southern")
+colnames(proportion_df) = c('neg', 'pos')
+proportion_df
+```
+
+```{r}
+airline <- c(rep("Lufthansa", 2), rep("AA", 2), rep("China Southern", 2))
+Value <- c(0.4038095, 0.5961905, 0.5085714, 0.4914286, 0.4057143, 0.5942857)
+sentiment <- c(rep(c("neg", "pos"), 3))
+proportion_df_long <- data.frame(Value, sentiment, airline)
+proportion_df_long
+```
+
+```{r}
+library(ggplot2)
+ggplot(proportion_df_long, aes(x = airline, y = Value)) +
+  geom_col(position = "stack", aes(fill=sentiment)) + 
+  scale_fill_manual(values = c("red", "blue"))
+```
+
+```{r}
+library(qdap)
+library(stringi)
+# AA
+aa$reviews <- stri_encode(aa$reviews, "", "UTF-8")
+aa_pol <- polarity(aa$reviews)
+aa_pol$all
+summary(aa_pol$all$polarity)
+# Lufthansa
+lufthansa$reviews <- stri_encode(lufthansa$reviews, "", "UTF-8")
+lufthansa_pol <- polarity(lufthansa$reviews)
+lufthansa_pol$all
+summary(lufthansa_pol$all$polarity)
+# CSA
+csa$reviews <- stri_encode(csa$reviews, "", "UTF-8")
+csa_pol <- polarity(csa$reviews)
+csa_pol$all
+summary(csa_pol$all$polarity)
+```
+
+
+```{r}
+all_df <- data.frame(polarity = c(aa_pol$all$polarity, lufthansa_pol$all$polarity, csa_pol$all$polarity),
+                     airline = c(rep("AA", dim(aa)[1]), rep("Lufthansa", dim(lufthansa)[1]),
+                                 rep("CSA", dim(csa)[1])))
+all_df
+```
+
+```{r}
+library(RColorBrewer)
+ggplot(all_df, aes(x = polarity, y = ..density..)) +
+  geom_histogram(color = "grey60") +
+  geom_density(aes(fill = airline), size = 0.75) +
+  facet_wrap( ~ airline) +
+  scale_color_manual()
+  #scale_color_brewer(palette = "YlOrRd")
+```
+
+As predicted, polarity scores on American Airline has a positive skew. This mean American Airline receives more negative feedback from their customers.
+
+```{r}
+<<<<<<< HEAD
+library(dplyr)
+=======
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+aa <- read.csv('AA.csv', header = TRUE, stringsAsFactors = FALSE)
+lufthansa <- read.csv('Lufthansa.csv', header = TRUE, stringsAsFactors = FALSE)
+csa <- read.csv('China_Southern_Airlines.csv', header = TRUE, stringsAsFactors = FALSE)
+
+names(aa)[names(aa) == "X"] <- "ID"
+names(lufthansa)[names(lufthansa) == "X"] <- "ID"
+names(csa)[names(csa) == "X"] <- "ID"
+
+tidy_aa <- aa %>%
+  unnest_tokens(word, reviews) %>%
+  group_by(ID) %>%
+  mutate(original_word_order = seq_along(word)) %>%
+  anti_join(stop_words) %>%
+  mutate(airline = c(rep("AA"))) %>%
+<<<<<<< HEAD
+  dplyr::select(ID, word, original_word_order, airline)
+=======
+  select(ID, word, original_word_order, airline)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+
+tidy_luft <- lufthansa %>%
+  unnest_tokens(word, reviews) %>%
+  group_by(ID) %>%
+  mutate(original_word_order = seq_along(word)) %>%
+  anti_join(stop_words) %>%
+  mutate(airline = c(rep("Lufthansa"))) %>%
+<<<<<<< HEAD
+  dplyr::select(ID, word, original_word_order, airline)
+=======
+  select(ID, word, original_word_order, airline)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+
+tidy_csa <- csa %>%
+  unnest_tokens(word, reviews) %>%
+  group_by(ID) %>%
+  mutate(original_word_order = seq_along(word)) %>%
+  anti_join(stop_words) %>%
+  mutate(airline = c(rep("CSA"))) %>%
+<<<<<<< HEAD
+  dplyr::select(ID, word, original_word_order, airline)
+=======
+  select(ID, word, original_word_order, airline)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+  
+```
+
+
+```{r}
+<<<<<<< HEAD
+tidy_csa
+```
+
+
+```{r}
+=======
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+pos_neg_aa <- tidy_aa %>%
+  inner_join(get_sentiments('bing')) %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(polarity = positive - negative, airline = c(rep("AA")))
+
+pos_neg_luft<- tidy_luft %>%
+  inner_join(get_sentiments('bing')) %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(polarity = positive - negative, airline = c(rep("Lufthansa")))
+
+<<<<<<< HEAD
+pos_neg_csa <- tidy_csa %>%
+=======
+pos_neg_csa <- tidy_luft %>%
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+  inner_join(get_sentiments('bing')) %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(polarity = positive - negative, airline = c(rep("CSA")))
+
+all_pos_neg <- merge(merge(pos_neg_aa, pos_neg_luft , all = TRUE), pos_neg_csa, all = TRUE)
+all_pos_neg
+```
+
+
+```{r}
+<<<<<<< HEAD
+library(RColorBrewer)
+=======
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+ggplot(all_pos_neg, aes(x = airline, y = polarity)) +
+  geom_boxplot(fill = c("#bada55", "#F00B42", "#F001ED"), col = "darkred") + 
+  geom_jitter(position = position_jitter(width = 0.1, height = 0), alpha = 0.02) +
+  theme_gdocs() +
+  ggtitle("Airline Polarity")
+```
+
+
+<<<<<<< HEAD
+- From all above methods, we conclude that China Southern and Lufthansa have been receiving better reviews than American Airline.
+- Distribution of Polarity score on Lufthansa reviews is almost normal with an outlier at -8.
+- CSA distribution is skwed to the left
+=======
+From all above methods, we conclude that China Southern and Lufthansa have been receiving better reviews than American Airline.
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+
+Write functions to clean texts of reviews
+
+```{r}
+# qdap cleaning function
+qdap_clean <- function(x) {
+  x <- replace_abbreviation(x)
+  x <- replace_contraction(x)
+  x <- replace_symbol(x)
+  x <- tolower(x)
+  return(x)
+}
+
+# tm cleaning function
+tm_clean <- function(corpus) { 
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removeNumbers)
+  corpus <- tm_map(corpus, removeWords, c(stopwords("en"), "american airlines", "lufthansa", "china southern airlines",  "china southern")) 
+  return(corpus) 
+}
+```
+
+Extract positive and negative reviews from each airline
+
+```{r}
+aa_pos <- aa %>%
+  filter(ratings == c(4, 5)) %>%
+<<<<<<< HEAD
+  dplyr::select(reviews)
+=======
+  select(reviews)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+head(aa_pos)
+
+aa_neg <- aa %>%
+  filter(ratings == c(1, 2)) %>%
+<<<<<<< HEAD
+  dplyr::select(reviews)
+=======
+  select(reviews)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+head(aa_neg)
+
+luft_pos <- lufthansa %>%
+  filter(ratings == c(4, 5)) %>%
+<<<<<<< HEAD
+  dplyr::select(reviews)
+=======
+  select(reviews)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+head(luft_pos)
+
+luft_neg <- lufthansa %>%
+  filter(ratings == c(1, 2)) %>%
+<<<<<<< HEAD
+  dplyr::select(reviews)
+=======
+  select(reviews)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+head(luft_neg)
+
+csa_pos <- csa %>%
+  filter(ratings == c(4, 5)) %>%
+<<<<<<< HEAD
+  dplyr::select(reviews)
+=======
+  select(reviews)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+head(csa_pos)
+
+csa_neg <- csa %>%
+  filter(ratings == c(1, 2)) %>%
+<<<<<<< HEAD
+  dplyr::select(reviews)
+=======
+  select(reviews)
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+head(csa_neg)
+```
+
+Apply the qdap_clean and tm_clean functions
+
+```{r}
+# Clean text with qdap_clean function
+qdap_clean_aa_pos <- qdap_clean(aa_pos)
+qdap_clean_aa_neg <- qdap_clean(aa_neg)
+
+qdap_clean_luft_pos <- qdap_clean(luft_pos)
+qdap_clean_luft_neg <- qdap_clean(luft_neg)
+
+qdap_clean_csa_pos <- qdap_clean(csa_pos)
+qdap_clean_csa_neg <- qdap_clean(csa_neg)
+
+# Source and create a corpus
+aa_pos_corp <- VCorpus(VectorSource(qdap_clean_aa_pos))
+aa_neg_corp <- VCorpus(VectorSource(qdap_clean_aa_neg))
+
+luft_pos_corp <- VCorpus(VectorSource(qdap_clean_luft_pos))
+luft_neg_corp <- VCorpus(VectorSource(qdap_clean_luft_neg))
+
+csa_pos_corp <- VCorpus(VectorSource(qdap_clean_csa_pos))
+csa_neg_corp <- VCorpus(VectorSource(qdap_clean_csa_neg))
+
+# tm_clean the corpus
+aa_p_corp <- tm_clean(aa_pos_corp)
+aa_n_corp <- tm_clean(aa_neg_corp)
+
+luft_p_corp <- tm_clean(luft_pos_corp)
+luft_n_corp <- tm_clean(luft_neg_corp)
+
+csa_p_corp <- tm_clean(csa_pos_corp)
+csa_n_corp <- tm_clean(csa_neg_corp)
+```
+
+
+```{r}
+library(RWeka)
+tokenizer <- function(x) {
+  NGramTokenizer(x, Weka_control(min = 2, max = 2))
+}
+
+# Create term-document-matrix
+aa_p_tdm <- TermDocumentMatrix(aa_p_corp, control = list(tokenize=tokenizer))
+aa_n_tdm <- TermDocumentMatrix(aa_n_corp, control = list(tokenize=tokenizer))
+
+luft_p_tdm <- TermDocumentMatrix(luft_p_corp, control = list(tokenize=tokenizer))
+luft_n_tdm <- TermDocumentMatrix(luft_n_corp, control = list(tokenize=tokenizer))
+
+csa_p_tdm <- TermDocumentMatrix(csa_p_corp, control = list(tokenize=tokenizer))
+csa_n_tdm <- TermDocumentMatrix(csa_n_corp, control = list(tokenize=tokenizer))
+
+```
+
+
+```{r}
+# Create tdm matrix
+aa_p_tdm_m <- as.matrix(aa_p_tdm)
+aa_n_tdm_m <- as.matrix(aa_n_tdm)
+
+luft_p_tdm_m <- as.matrix(luft_p_tdm)
+luft_n_tdm_m <- as.matrix(luft_n_tdm)
+
+csa_p_tdm_m <- as.matrix(csa_p_tdm)
+csa_n_tdm_m <- as.matrix(csa_n_tdm)
+
+# Create frequency
+aa_p_freq <- rowSums(aa_p_tdm_m)
+aa_n_freq <- rowSums(aa_n_tdm_m)
+
+luft_p_freq <- rowSums(luft_p_tdm_m)
+luft_n_freq <- rowSums(luft_n_tdm_m)
+
+csa_p_freq <- rowSums(csa_p_tdm_m)
+csa_n_freq <- rowSums(csa_n_tdm_m)
+```
+
+
+```{r}
+library(wordcloud)
+wordcloud(names(aa_n_freq), aa_n_freq, max.words = 100, color='red')
+ 
+```
+
+
+```{r}
+wordcloud(names(luft_p_freq), luft_p_freq, max.words = 100, color='blue')
+```
+
+Plot the 10 most common words in positive reviews of China Souther Airlines
+
+```{r}
+# Calculate the row sums of coffee_m
+term_frequency <- rowSums(csa_p_tdm_m)
+
+# Sort term_frequency in decreasing order
+term_frequency <- sort(term_frequency, decreasing = TRUE)
+
+# Plot a barchart of the 10 most common words
+barplot(term_frequency[1:10], col = "tan", las = 2)
+```
+
+Top 10 common words in positive reviews of American Airlines 
+
+```{r}
+frequency <- freq_terms(
+  aa_pos,
+  top = 10,
+  at.least = 5,
+  stopwords = "Top500Words"
+)
+
+# Make a frequency barchart
+plot(frequency, las = 2)
+```
+
+Top 10 common words in positive reviews of China Southern 
+
+```{r}
+# Create frequency
+frequency <- freq_terms(
+  csa$titles, 
+  top = 10, 
+  at.least = 3, # At least 3 letters per term.
+  stopwords = "Top200Words"
+)
+
+# Make a frequency barchart
+plot(frequency, col = "tan", las = 2)
+
+```
+
+Good news! China Southern mostly receives positive words from customers review titles!!!
+
+```{r}
+# Word association
+luft_titles <- lufthansa$titles
+word_associate(luft_titles, match.string = "experience", 
+               stopwords = c(Top200Words), text.unit = "sentence", wordcloud = TRUE,
+               network.plot = TRUE, cloud.colors = c("gray85", "darkred"))
+
+# Add title
+title(main = "Lufthansa Reviews Associations")
+```
+
+Asscosiate words with "experience" term from Lufthansa customer reviews did not turn out so good!
+
+We will create a comparison cloud for reviews of Lufthansa
+
+```{r}
+pos_aa <- paste(aa_pos, collapse = " ")
+neg_aa <- paste(aa_neg, collapse = " ")
+pos_luft <- paste(luft_pos, collapse = " ")
+neg_luft <- paste(luft_neg, collapse = " ")
+pos_csa <- paste(csa_pos, collapse = " ")
+neg_csa <- paste(csa_neg, collapse = " ")
+
+all_aa <- c(pos_aa, neg_aa)
+all_luft <- c(pos_aa, neg_aa)
+all_csa <- c(pos_csa, neg_csa)
+
+all_aa_corp <- VCorpus(VectorSource(all_aa))
+all_luft_corp <- VCorpus(VectorSource(all_luft))
+all_csa_corp <- VCorpus(VectorSource(all_csa))
+
+```
+
+
+<<<<<<< HEAD
+Create a dendrogram
+
+```{r}
+
+
+```
+
+
+=======
+>>>>>>> e53766ff904bcd1144eba0c2e2a2f470be8004e4
+```{r}
+all_luft_corp_clean <- tm_clean(all_luft_corp)
+
+all_luft_tdm <- TermDocumentMatrix(all_luft_corp_clean)
+
+all_luft_m <- as.matrix(all_luft_tdm)
+
+# A comparison cloud
+comparison.cloud(all_luft_m, max.words = 50, colors = c("#2196f3", "#F44336"))
+```
+
+Lufthansa vs China Southern Airlines Negative Reviews
+
+```{r}
+csa_luft_neg <- c(neg_luft, neg_csa)
+
+csa_luft_neg_clean <- qdap_clean(csa_luft_neg)
+
+csa_luft_neg_corp <- VCorpus(VectorSource(csa_luft_neg_clean))
+csa_luft_neg_corp_tm <- tm_clean(csa_luft_neg_corp)
+
+library(RWeka)
+tokenizer <- function(x) {
+  NGramTokenizer(x, Weka_control(min = 2, max = 3))
+}
+
+csa_luft_neg_tdm <- TermDocumentMatrix(csa_luft_neg_corp_tm, control=list(tokenize=tokenizer))
+colnames(csa_luft_neg_tdm) <- c("LuftNegative", "ChinaSouthernNegative")
+csa_luft_m <- as.matrix(csa_luft_neg_tdm)
+
+library(dplyr)
+csa_luft_df_neg <- csa_luft_m %>%
+  # Convert to data frame
+  as_data_frame(rownames = "word")
+csa_luft_df_neg
+```
+
+
+```{r}
+library(dplyr)
+# Filter to words in common and create an absolute diff column
+common_words <- csa_luft_df_neg %>% 
+  filter(
+    LuftNegative != 0,
+    ChinaSouthernNegative != 0
+  ) %>%
+  mutate(diff = abs(LuftNegative - ChinaSouthernNegative))
+
+# Extract top 10 common bigrams
+(top10_df <- top_n(common_words, 10, diff))
+```
+
+Apyramid plot for negative words in reviews of Lufthansa and China Southern
+
+```{r}
+# Create the pyramid plot
+library(plotrix)
+pyramid.plot(top10_df$LuftNegative, top10_df$ChinaSouthernNegative, 
+             labels = top10_df$word, gap = 4,
+             top.labels = c("Lufthansa", "Words", "China Southern"), 
+             main = "Negative Words in Common", unit = NULL)
+```
+
+Lufthansa seems to get more negative reviews on customer service and business class. Meanwhie, China Southern receives more complaints on delayed flights. 
+
+
+
